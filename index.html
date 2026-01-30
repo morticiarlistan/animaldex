@@ -1,0 +1,1310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AnimalDex - Real World Animal Encyclopedia</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --dex-red: #DC143C;
+            --dex-dark-red: #8B0000;
+            --dex-shadow: #500000;
+            --screen-bg: #0f380f;
+            --screen-active: #1a4d1a;
+            --text-color: #00FF41;
+            --text-shadow: 0 0 5px rgba(0, 255, 65, 0.5);
+            --glass-reflection: rgba(255,255,255,0.15);
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: #111;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            font-family: 'Press Start 2P', cursive;
+            overflow: hidden;
+            perspective: 1200px;
+        }
+
+        /* --- DEVICE CONTAINER --- */
+        .pokedex-container {
+            width: 380px;
+            height: 540px;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+        }
+
+        .pokedex-container.open {
+            /* Moves the whole device down slightly when open to center it better */
+            transform: translateY(100px); 
+        }
+
+        /* --- TOP HALF (SCREEN) --- */
+        .top-half {
+            width: 100%;
+            height: 50%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform-origin: bottom center;
+            transform-style: preserve-3d;
+            transition: transform 0.8s cubic-bezier(0.6, -0.28, 0.735, 0.045);
+            z-index: 10;
+        }
+
+        .pokedex-container.open .top-half {
+            transform: rotateX(-160deg); /* Flips up */
+            transition: transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* Faces of the Top Half */
+        .top-face, .top-back {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            backface-visibility: hidden;
+            border-radius: 20px 20px 0 0;
+            overflow: hidden;
+        }
+
+        /* FRONT COVER (Visible when closed) */
+        .top-face {
+            background: linear-gradient(135deg, var(--dex-red), var(--dex-dark-red));
+            box-shadow: inset 5px 5px 15px rgba(255,255,255,0.3), inset -5px -5px 15px rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2;
+        }
+
+        /* INSIDE SCREEN (Visible when open) */
+        .top-back {
+            transform: rotateY(180deg) rotateZ(180deg); /* Orient correctly when flipped */
+            background: linear-gradient(to bottom, var(--dex-red), var(--dex-dark-red));
+            border-bottom: 4px solid var(--dex-dark-red);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.6);
+        }
+
+        /* --- BOTTOM HALF (CONTROLS) --- */
+        .bottom-half {
+            width: 100%;
+            height: 50%;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            background: linear-gradient(180deg, var(--dex-red), var(--dex-dark-red));
+            border-radius: 0 0 20px 20px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8), inset 2px 2px 5px rgba(255,255,255,0.2);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 5;
+        }
+
+        /* --- DECORATIONS --- */
+        .lens-assembly {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 80px;
+            height: 80px;
+            background: #ccc;
+            border-radius: 50%;
+            border: 4px solid #fff;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .main-lens {
+            width: 60px;
+            height: 60px;
+            background: radial-gradient(circle at 30% 30%, #44f, #009);
+            border-radius: 50%;
+            box-shadow: 0 0 10px #00f;
+            animation: pulse-blue 3s infinite;
+            position: relative;
+        }
+
+        .main-lens::after {
+            content: '';
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 15px;
+            height: 15px;
+            background: white;
+            border-radius: 50%;
+            opacity: 0.6;
+        }
+
+        .leds {
+            position: absolute;
+            top: 25px;
+            left: 120px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .led {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            border: 1px solid rgba(0,0,0,0.3);
+            box-shadow: inset 1px 1px 2px rgba(255,255,255,0.5);
+        }
+        .led.red { background: #f00; }
+        .led.yellow { background: #ff0; }
+        .led.green { background: #0f0; }
+
+        /* --- THE SCREEN --- */
+        .screen-bezel {
+            width: 90%;
+            height: 80%;
+            background: #dedede;
+            border-radius: 10px 10px 30px 10px;
+            padding: 20px;
+            box-shadow: inset 2px 2px 5px rgba(255,255,255,1), 5px 5px 10px rgba(0,0,0,0.3);
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .screen-glass {
+            width: 100%;
+            height: 100%;
+            background: #222;
+            border-radius: 5px;
+            border: 2px solid #555;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            opacity: 0.2; /* Off state */
+            transition: opacity 0.3s;
+        }
+
+        .pokedex-container.on .screen-glass {
+            opacity: 1;
+            background: var(--screen-bg);
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+        }
+
+        /* CRT Effects */
+        .scanlines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                to bottom,
+                rgba(0,0,0,0) 50%,
+                rgba(0,0,0,0.2) 50%
+            );
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 50;
+        }
+        
+        .screen-content {
+            padding: 10px;
+            color: var(--text-color);
+            text-shadow: var(--text-shadow);
+            font-size: 10px;
+            line-height: 1.4;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            z-index: 10;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 2px solid var(--text-color);
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+        }
+
+        .main-display {
+            display: flex;
+            gap: 10px;
+            flex: 1;
+        }
+
+        .sprite-area {
+            width: 100px;
+            height: 100px;
+            border: 2px dashed var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 60px;
+            background: rgba(0, 255, 65, 0.1);
+        }
+
+        .info-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .type-badges {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            padding: 2px 5px;
+            color: white;
+            font-size: 8px;
+            border-radius: 4px;
+            text-shadow: 1px 1px 0 #000;
+            text-transform: uppercase;
+        }
+
+        .stats-container {
+            margin-top: 10px;
+            width: 100%;
+        }
+
+        .stat-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 3px;
+        }
+        .stat-label { width: 30px; font-size: 8px; }
+        .stat-bar-bg { flex: 1; height: 6px; background: rgba(0,255,65,0.2); }
+        .stat-bar-fill { height: 100%; background: var(--text-color); width: 0%; transition: width 0.5s ease-out; }
+
+        .desc-box {
+            margin-top: auto;
+            border-top: 2px solid var(--text-color);
+            padding-top: 5px;
+            font-size: 9px;
+            height: 60px;
+            overflow-y: auto;
+        }
+
+        /* --- CONTROLS --- */
+        .controls-grid {
+            width: 90%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .d-pad {
+            width: 100px;
+            height: 100px;
+            position: relative;
+        }
+
+        .d-pad div {
+            background: #222;
+            position: absolute;
+            border-radius: 5px;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.5), inset 1px 1px 3px rgba(255,255,255,0.2);
+            cursor: pointer;
+        }
+        .d-pad div:active { transform: scale(0.95); box-shadow: inset 2px 2px 5px rgba(0,0,0,0.8); }
+
+        .cross-h { width: 100%; height: 34px; top: 33px; left: 0; }
+        .cross-v { height: 100%; width: 34px; left: 33px; top: 0; }
+        
+        .center-circle {
+            width: 20px; height: 20px; background: #111 !important; 
+            border-radius: 50% !important; top: 40px; left: 40px; z-index: 2; pointer-events: none;
+        }
+
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .btn-round {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: none;
+            color: rgba(0,0,0,0.5);
+            font-family: 'Press Start 2P';
+            font-size: 12px;
+            cursor: pointer;
+            box-shadow: 2px 4px 6px rgba(0,0,0,0.4), inset -2px -2px 5px rgba(0,0,0,0.2);
+            position: relative;
+        }
+        .btn-round:active { transform: translateY(2px); box-shadow: none; }
+        
+        .btn-a { background: #33aaff; } /* Blue button */
+        .btn-b { background: #aa3333; margin-left: 40px; margin-top: -20px; } /* Red button offset */
+
+        .speaker-grille {
+            margin-top: 20px;
+            display: flex;
+            gap: 4px;
+        }
+        .grille-line {
+            width: 60px;
+            height: 6px;
+            background: #500000;
+            border-radius: 3px;
+            box-shadow: inset 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        .speaker-grille.pulsing .grille-line {
+            animation: speaker-pulse 0.2s infinite alternate;
+        }
+
+        /* --- CAMERA & SEARCH --- */
+        .camera-view {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 20; display: none; flex-direction: column;
+        }
+        .camera-view video { width: 100%; height: 100%; object-fit: cover; opacity: 0.6; }
+        .camera-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            pointer-events: none;
+        }
+        .scan-reticle {
+            width: 150px; height: 150px;
+            border: 2px solid rgba(0,255,65,0.5);
+            box-shadow: 0 0 10px rgba(0,255,65,0.2);
+            position: relative;
+        }
+        .scan-reticle::before, .scan-reticle::after {
+            content: ''; position: absolute; width: 20px; height: 20px;
+            border-color: #00FF41; border-style: solid;
+        }
+        .scan-reticle::before { top: -2px; left: -2px; border-width: 4px 0 0 4px; }
+        .scan-reticle::after { bottom: -2px; right: -2px; border-width: 0 4px 4px 0; }
+        
+        .scan-btn-overlay {
+            margin-top: 20px;
+            background: rgba(0, 255, 65, 0.2);
+            color: #00FF41; border: 2px solid #00FF41;
+            padding: 10px 20px; font-family: inherit; font-size: 10px;
+            pointer-events: auto; cursor: pointer;
+            text-shadow: 0 0 5px #00FF41;
+        }
+        .scan-btn-overlay:active { background: #00FF41; color: #000; }
+        
+        .search-bar {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 30px;
+            background: rgba(0,20,0,0.9); border-top: 1px solid #00FF41;
+            display: none; align-items: center; padding: 0 10px; z-index: 25;
+        }
+        .search-input {
+            background: transparent; border: none; color: #00FF41;
+            font-family: inherit; font-size: 10px; width: 100%; outline: none;
+            text-transform: uppercase;
+        }
+
+        .system-controls {
+            display: flex; gap: 15px; justify-content: center; width: 100%; margin-top: 15px;
+        }
+        .sys-btn {
+            width: 40px; height: 30px; background: #222; border-radius: 4px;
+            border: none; color: #aaa; font-size: 14px; cursor: pointer;
+            box-shadow: inset 1px 1px 2px rgba(255,255,255,0.1), 2px 2px 4px rgba(0,0,0,0.5);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .sys-btn:active { transform: translateY(1px); box-shadow: none; }
+
+        /* --- ANIMATIONS --- */
+        @keyframes pulse-blue {
+            0% { box-shadow: 0 0 5px #00f; }
+            50% { box-shadow: 0 0 20px #00f, 0 0 40px #00f; }
+            100% { box-shadow: 0 0 5px #00f; }
+        }
+
+        @keyframes speaker-pulse {
+            from { background: #500000; }
+            to { background: #900000; }
+        }
+
+        @keyframes blink {
+            0% { opacity: 0.2; }
+            20% { opacity: 1; }
+            100% { opacity: 0.2; }
+        }
+
+        .loading-text {
+            animation: blink 0.5s infinite;
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: gold;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: particle-fly 1s ease-out forwards;
+        }
+
+        @keyframes particle-fly {
+            0% { opacity: 1; transform: translate(0,0); }
+            100% { opacity: 0; transform: translate(var(--tx), var(--ty)); }
+        }
+
+        /* Audio Visualizer */
+        .waveform {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            width: 30px;
+            height: 20px;
+            display: flex;
+            align-items: flex-end;
+            gap: 2px;
+            opacity: 0;
+        }
+        .waveform.active { opacity: 1; }
+        .bar { width: 4px; background: var(--text-color); animation: wave 0.5s infinite ease-in-out alternate; }
+        .bar:nth-child(2) { animation-delay: 0.1s; }
+        .bar:nth-child(3) { animation-delay: 0.2s; }
+        @keyframes wave { from { height: 2px; } to { height: 15px; } }
+
+        /* Cover decoration */
+        .cover-decor {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            color: rgba(0,0,0,0.3);
+            font-size: 14px;
+            font-weight: bold;
+            transform: rotate(-5deg);
+        }
+        
+        .hinge {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 40px;
+            background: linear-gradient(to bottom, #800, #a00, #800);
+            transform: translateY(-50%);
+            z-index: 4;
+            border-radius: 5px;
+            box-shadow: 0 5px 10px rgba(0,0,0,0.5);
+        }
+
+        .start-hint {
+            position: absolute;
+            bottom: -50px;
+            color: #666;
+            font-size: 12px;
+            text-align: center;
+            width: 100%;
+            animation: blink 2s infinite;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="pokedex-container" id="pokedex">
+        
+        <!-- Hinge Visual -->
+        <div class="hinge"></div>
+
+        <!-- TOP HALF -->
+        <div class="top-half">
+            <!-- Front Face (Closed) -->
+            <div class="top-face">
+                <div class="lens-assembly">
+                    <div class="main-lens"></div>
+                </div>
+                <div class="leds">
+                    <div class="led red"></div>
+                    <div class="led yellow"></div>
+                    <div class="led green"></div>
+                </div>
+                <div class="cover-decor">ANIMALDEX<br>MODEL V1.0</div>
+            </div>
+
+            <!-- Back Face (Screen - Inside) -->
+            <div class="top-back">
+                <div class="screen-bezel">
+                    <div class="screen-glass" id="screen">
+                        <div class="scanlines"></div>
+                        
+                        <!-- CAMERA VIEW -->
+                        <div class="camera-view" id="camera-view">
+                            <video id="camera-video" autoplay playsinline></video>
+                            <div class="camera-overlay">
+                                <div class="scan-reticle"></div>
+                                <button class="scan-btn-overlay" id="btn-scan-trigger">SCAN TARGET</button>
+                            </div>
+                            <canvas id="camera-canvas" style="display:none;"></canvas>
+                        </div>
+
+                        <!-- SEARCH BAR -->
+                        <div class="search-bar" id="search-bar">
+                            <span style="margin-right:5px;">></span>
+                            <input type="text" class="search-input" id="search-input" placeholder="ENTER NAME...">
+                        </div>
+
+                        <div class="screen-content" id="screen-content" style="display:none;">
+                            <div class="top-bar">
+                                <span id="animal-id">#001</span>
+                                <span id="rarity-badge">COMMON</span>
+                            </div>
+                            
+                            <div class="main-display">
+                                <div class="sprite-area" id="animal-sprite">?</div>
+                                <div class="info-area">
+                                    <div style="font-weight: bold;" id="animal-name">UNKNOWN</div>
+                                    <div style="font-size: 7px; font-style: italic;" id="scientific-name">Animalia incognita</div>
+                                    <div class="type-badges" id="type-badges">
+                                        <!-- badges injected here -->
+                                    </div>
+                                    <div style="font-size: 7px; margin-top: 5px;">
+                                        HT: <span id="height">?</span>m<br>
+                                        WT: <span id="weight">?</span>kg
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="stats-container" id="stats-bars">
+                                <!-- Bars injected here -->
+                            </div>
+
+                            <div class="desc-box" id="description">
+                                WAITING FOR INPUT...
+                            </div>
+                            
+                            <div class="waveform" id="waveform">
+                                <div class="bar"></div>
+                                <div class="bar"></div>
+                                <div class="bar"></div>
+                            </div>
+                        </div>
+                        <div class="loading-text" id="boot-screen" style="display:none; height:100%; justify-content:center; align-items:center; color: var(--text-color);">
+                            BOOTING...
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top: 10px; display: flex; gap: 10px;">
+                    <div class="led red" style="background:#f00; box-shadow:0 0 5px red"></div>
+                    <div class="led" style="background:#333"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BOTTOM HALF -->
+        <div class="bottom-half">
+            <div class="controls-grid">
+                <!-- D-Pad -->
+                <div class="d-pad">
+                    <div class="cross-h"></div>
+                    <div class="cross-v"></div>
+                    <div class="center-circle"></div>
+                    <!-- Touch zones for D-pad logic -->
+                    <div style="position: absolute; top:0; left:33px; width:34px; height:33px; background:transparent; z-index:10;" onclick="handleInput('UP')"></div>
+                    <div style="position: absolute; bottom:0; left:33px; width:34px; height:33px; background:transparent; z-index:10;" onclick="handleInput('DOWN')"></div>
+                    <div style="position: absolute; left:0; top:33px; width:33px; height:34px; background:transparent; z-index:10;" onclick="handleInput('LEFT')"></div>
+                    <div style="position: absolute; right:0; top:33px; width:33px; height:34px; background:transparent; z-index:10;" onclick="handleInput('RIGHT')"></div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="action-buttons">
+                    <button class="btn-round btn-a" onclick="handleInput('A')">A</button>
+                    <button class="btn-round btn-b" onclick="handleInput('B')">B</button>
+                </div>
+            </div>
+            
+            <!-- SYSTEM BUTTONS -->
+            <div class="system-controls">
+                <button class="sys-btn" onclick="toggleCamera()">📷</button>
+                <button class="sys-btn" onclick="toggleSearch()">🔍</button>
+            </div>
+
+            <!-- Fake keyboard / lower buttons strip -->
+            <div style="display:flex; gap:5px; margin-top:20px;">
+                 <div style="width:40px; height:10px; background:#222; border-radius:5px;"></div>
+                 <div style="width:40px; height:10px; background:#222; border-radius:5px;"></div>
+                 <div style="width:40px; height:10px; background:#222; border-radius:5px;"></div>
+            </div>
+
+            <div class="speaker-grille" id="speaker">
+                <div class="grille-line"></div>
+                <div class="grille-line"></div>
+                <div class="grille-line"></div>
+            </div>
+        </div>
+        
+        <div class="start-hint">CLICK TO OPEN</div>
+    </div>
+
+    <script>
+        // --- DATA ---
+        const API_KEY = "AIzaSyAi11C05Xq30w2W24iSWPFDfd5IUPSmetM";
+        const TYPE_COLORS = {
+            jungle: '#228B22', ocean: '#1E90FF', desert: '#DAA520', arctic: '#00CED1',
+            savanna: '#FF8C00', forest: '#006400', mountain: '#808080', urban: '#800080',
+            sky: '#87CEEB', underground: '#8B4513'
+        };
+
+        const ANIMALS = [
+            {
+                id: 1, name: "Lion", scientificName: "Panthera leo", emoji: "🦁",
+                types: ["savanna"], stats: {hp:80, attack:95, defense:70, speed:80, special:60},
+                height: 1.2, weight: 190, rarity: "common",
+                desc: "The king of the savanna. Lions live in prides and coordinate complex hunts. Males possess a distinctive mane."
+            },
+            {
+                id: 2, name: "Blue Whale", scientificName: "Balaenoptera musculus", emoji: "🐋",
+                types: ["ocean"], stats: {hp:100, attack:40, defense:90, speed:30, special:80},
+                height: 30, weight: 150000, rarity: "rare",
+                desc: "The largest animal known to have ever lived. Its tongue alone can weigh as much as an elephant."
+            },
+            {
+                id: 3, name: "Peregrine Falcon", scientificName: "Falco peregrinus", emoji: "🦅",
+                types: ["sky", "urban"], stats: {hp:50, attack:85, defense:40, speed:100, special:70},
+                height: 0.5, weight: 1.5, rarity: "uncommon",
+                desc: "The fastest member of the animal kingdom. It can reach speeds of over 320 km/h (200 mph) during its hunting stoop."
+            },
+            {
+                id: 4, name: "African Elephant", scientificName: "Loxodonta africana", emoji: "🐘",
+                types: ["savanna", "jungle"], stats: {hp:95, attack:80, defense:85, speed:40, special:75},
+                height: 3.3, weight: 6000, rarity: "uncommon",
+                desc: "Earth's largest land animal. They have highly developed brains and are known for their intelligence and memory."
+            },
+            {
+                id: 5, name: "Emperor Penguin", scientificName: "Aptenodytes forsteri", emoji: "🐧",
+                types: ["arctic", "ocean"], stats: {hp:70, attack:50, defense:60, speed:40, special:50},
+                height: 1.2, weight: 40, rarity: "common",
+                desc: "They endure the harshest winter on earth. Males incubate the egg on their feet for two months in darkness."
+            },
+            {
+                id: 6, name: "Komodo Dragon", scientificName: "Varanus komodoensis", emoji: "🦎",
+                types: ["jungle", "desert"], stats: {hp:75, attack:90, defense:65, speed:50, special:85},
+                height: 2.6, weight: 70, rarity: "rare",
+                desc: "The largest living species of lizard. Their saliva contains venomous proteins that help bring down prey."
+            },
+            {
+                id: 7, name: "Giant Panda", scientificName: "Ailuropoda melanoleuca", emoji: "🐼",
+                types: ["forest", "mountain"], stats: {hp:85, attack:60, defense:70, speed:30, special:50},
+                height: 1.5, weight: 100, rarity: "rare",
+                desc: "A bear native to south central China. It subsists almost exclusively on bamboo despite having a carnivore's digestive system."
+            },
+            {
+                id: 8, name: "Octopus", scientificName: "Octopus vulgaris", emoji: "🐙",
+                types: ["ocean"], stats: {hp:60, attack:50, defense:40, speed:60, special:100},
+                height: 0.8, weight: 10, rarity: "common",
+                desc: "Highly intelligent invertebrates with three hearts and blue blood. They can change color and texture instantly."
+            },
+            {
+                id: 9, name: "Honey Badger", scientificName: "Mellivora capensis", emoji: "🦡",
+                types: ["savanna", "desert"], stats: {hp:80, attack:85, defense:80, speed:60, special:70},
+                height: 0.3, weight: 12, rarity: "uncommon",
+                desc: "Known for its toughness and ferocity. It is virtually immune to snake venom and has very thick skin."
+            },
+            {
+                id: 10, name: "Snow Leopard", scientificName: "Panthera uncia", emoji: "🐆",
+                types: ["mountain", "arctic"], stats: {hp:70, attack:85, defense:60, speed:85, special:65},
+                height: 1.1, weight: 45, rarity: "rare",
+                desc: "The 'ghost of the mountains'. Their wide paws act as natural snowshoes, and their tails wrap around them for warmth."
+            },
+            {
+                id: 11, name: "Red Kangaroo", scientificName: "Osphranter rufus", emoji: "🦘",
+                types: ["desert", "savanna"], stats: {hp:75, attack:80, defense:50, speed:75, special:50},
+                height: 1.8, weight: 85, rarity: "common",
+                desc: "The largest marsupial. They travel by hopping on their powerful hind legs and use their tail for balance."
+            },
+            {
+                id: 12, name: "Polar Bear", scientificName: "Ursus maritimus", emoji: "🐻‍❄️",
+                types: ["arctic", "ocean"], stats: {hp:90, attack:90, defense:80, speed:50, special:60},
+                height: 2.5, weight: 500, rarity: "uncommon",
+                desc: "A hyper-carnivorous bear. Its skin is black to absorb heat, while its fur is translucent."
+            },
+            {
+                id: 13, name: "Gorilla", scientificName: "Gorilla beringei", emoji: "🦍",
+                types: ["jungle", "mountain"], stats: {hp:90, attack:95, defense:80, speed:50, special:70},
+                height: 1.7, weight: 180, rarity: "rare",
+                desc: "Gentle giants that share 98% of their DNA with humans. Silverback males protect their troops with immense strength."
+            },
+            {
+                id: 14, name: "Owl", scientificName: "Strigiformes", emoji: "🦉",
+                types: ["forest", "sky"], stats: {hp:50, attack:70, defense:40, speed:70, special:90},
+                height: 0.6, weight: 2, rarity: "common",
+                desc: "Silent nocturnal hunters. They can rotate their heads up to 270 degrees and have specialized hearing."
+            },
+            {
+                id: 15, name: "Naked Mole Rat", scientificName: "Heterocephalus glaber", emoji: "🐀",
+                types: ["underground"], stats: {hp:60, attack:30, defense:40, speed:40, special:95},
+                height: 0.1, weight: 0.03, rarity: "uncommon",
+                desc: "Eusocial mammals that live in colonies like ants. They are resistant to cancer and feel no pain in their skin."
+            },
+            {
+                id: 16, name: "Tardigrade", scientificName: "Tardigrada", emoji: "🦠",
+                types: ["ocean", "mountain", "arctic"], stats: {hp:100, attack:10, defense:100, speed:10, special:100},
+                height: 0.001, weight: 0.0001, rarity: "legendary",
+                desc: "The 'Water Bear'. Microscopic and nearly indestructible, they can survive the vacuum of space and extreme radiation."
+            },
+            {
+                id: 17, name: "Axolotl", scientificName: "Ambystoma mexicanum", emoji: "🦎",
+                types: ["ocean"], stats: {hp:60, attack:40, defense:30, speed:40, special:90},
+                height: 0.2, weight: 0.2, rarity: "rare",
+                desc: "A salamander that never grows up, retaining its gills. It has amazing regenerative abilities, regrowing entire limbs."
+            },
+            {
+                id: 18, name: "Platypus", scientificName: "Ornithorhynchus anatinus", emoji: "🦆",
+                types: ["ocean", "jungle"], stats: {hp:50, attack:50, defense:50, speed:50, special:95},
+                height: 0.5, weight: 2, rarity: "rare",
+                desc: "One of the few venomous mammals. It lays eggs, sweats milk, and detects prey using electrolocation."
+            },
+            {
+                id: 19, name: "Saltwater Crocodile", scientificName: "Crocodylus porosus", emoji: "🐊",
+                types: ["ocean", "jungle"], stats: {hp:90, attack:100, defense:90, speed:60, special:60},
+                height: 5.2, weight: 1000, rarity: "rare",
+                desc: "The largest living reptile. It has the strongest bite force of any animal known today."
+            },
+            {
+                id: 20, name: "Unicorn (Myth)", scientificName: "Equus monoceros", emoji: "🦄",
+                types: ["forest", "sky"], stats: {hp:90, attack:80, defense:80, speed:90, special:100},
+                height: 1.8, weight: 500, rarity: "legendary",
+                desc: "A legendary creature that has been described since antiquity as a beast with a single large, pointed, spiraling horn."
+            },
+            {
+                id: 21, name: "Capybara", scientificName: "Hydrochoerus hydrochaeris", emoji: "🐹",
+                types: ["jungle", "ocean"], stats: {hp:70, attack:30, defense:50, speed:40, special:100},
+                height: 0.6, weight: 60, rarity: "common",
+                desc: "The world's largest rodent. Extremely chill, they are often seen with other animals sitting on them."
+            }
+        ];
+
+        // --- AUDIO ENGINE (Web Audio API) ---
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+        let masterGain;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioCtx();
+                masterGain = audioCtx.createGain();
+                masterGain.gain.value = 0.3;
+                masterGain.connect(audioCtx.destination);
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        const Sounds = {
+            beep: (type) => {
+                if(!audioCtx) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(masterGain);
+
+                if (type === 'select') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.1);
+                } else if (type === 'move') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.05);
+                }
+            },
+            boot: () => {
+                if(!audioCtx) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(masterGain);
+                
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(110, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(880, audioCtx.currentTime + 0.5);
+                
+                gain.gain.setValueAtTime(0, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.1);
+                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
+                
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.6);
+            },
+            legendary: () => {
+                if(!audioCtx) return;
+                const now = audioCtx.currentTime;
+                // Simple fanfare
+                [440, 554, 659, 880].forEach((freq, i) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.connect(gain);
+                    gain.connect(masterGain);
+                    osc.type = 'square';
+                    osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0.2, now + i*0.1);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + i*0.1 + 0.3);
+                    osc.start(now + i*0.1);
+                    osc.stop(now + i*0.1 + 0.3);
+                });
+            },
+            shutter: () => {
+                if(!audioCtx) return;
+                // White noise burst
+                const bufferSize = audioCtx.sampleRate * 0.1;
+                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+                const noise = audioCtx.createBufferSource();
+                noise.buffer = buffer;
+                const gain = audioCtx.createGain();
+                gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                
+                noise.connect(gain);
+                gain.connect(masterGain);
+                noise.start();
+            },
+            sad: () => {
+                 if(!audioCtx) return;
+                 const osc = audioCtx.createOscillator();
+                 const gain = audioCtx.createGain();
+                 osc.connect(gain);
+                 gain.connect(masterGain);
+                 osc.type = 'triangle';
+                 osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+                 osc.frequency.linearRampToValueAtTime(150, audioCtx.currentTime + 0.5);
+                 gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                 gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
+                 osc.start();
+                 osc.stop(audioCtx.currentTime + 0.5);
+            }
+        };
+
+        // --- APP LOGIC ---
+        const dom = {
+            pokedex: document.getElementById('pokedex'),
+            screen: document.getElementById('screen'),
+            bootScreen: document.getElementById('boot-screen'),
+            contentScreen: document.getElementById('screen-content'),
+            speaker: document.getElementById('speaker'),
+            waveform: document.getElementById('waveform'),
+            
+            // Camera & Search
+            cameraView: document.getElementById('camera-view'),
+            cameraVideo: document.getElementById('camera-video'),
+            cameraCanvas: document.getElementById('camera-canvas'),
+            btnScan: document.getElementById('btn-scan-trigger'),
+            searchBar: document.getElementById('search-bar'),
+            searchInput: document.getElementById('search-input'),
+
+            fields: {
+                id: document.getElementById('animal-id'),
+                name: document.getElementById('animal-name'),
+                sciName: document.getElementById('scientific-name'),
+                sprite: document.getElementById('animal-sprite'),
+                desc: document.getElementById('description'),
+                types: document.getElementById('type-badges'),
+                height: document.getElementById('height'),
+                weight: document.getElementById('weight'),
+                rarity: document.getElementById('rarity-badge'),
+                stats: document.getElementById('stats-bars')
+            }
+        };
+
+        let state = {
+            isOpen: false,
+            isOn: false,
+            currentIndex: 0,
+            speaking: false,
+            cameraActive: false,
+            stream: null
+        };
+
+        let synth = window.speechSynthesis;
+        let speakUtterance = null;
+
+        // Toggle Open/Close
+        dom.pokedex.addEventListener('click', (e) => {
+            if (e.target.closest('.bottom-half') && state.isOpen) return; // Don't close when clicking controls
+            
+            initAudio();
+            
+            if (!state.isOpen) {
+                // OPEN
+                dom.pokedex.classList.add('open');
+                state.isOpen = true;
+                setTimeout(() => bootUp(), 800);
+            } else if (e.target.closest('.top-face')) {
+                 // Close if clicking the lid
+                 closeDex();
+            }
+        });
+
+        // Close logic
+        function closeDex() {
+             dom.pokedex.classList.remove('open');
+             dom.pokedex.classList.remove('on');
+             state.isOpen = false;
+             state.isOn = false;
+             dom.bootScreen.style.display = 'none';
+             dom.contentScreen.style.display = 'none';
+             stopCamera();
+             dom.searchBar.style.display = 'none';
+             stopSpeak();
+        }
+
+        function bootUp() {
+            dom.pokedex.classList.add('on');
+            Sounds.boot();
+            dom.bootScreen.style.display = 'flex';
+            setTimeout(() => {
+                dom.bootScreen.style.display = 'none';
+                dom.contentScreen.style.display = 'flex';
+                state.isOn = true;
+                loadAnimal(state.currentIndex);
+            }, 1500);
+        }
+
+        function handleInput(key) {
+            if (!state.isOn || state.cameraActive) return;
+            initAudio();
+
+            switch(key) {
+                case 'UP':
+                case 'RIGHT':
+                    Sounds.beep('move');
+                    state.currentIndex = (state.currentIndex + 1) % ANIMALS.length;
+                    loadAnimal(state.currentIndex);
+                    break;
+                case 'DOWN':
+                case 'LEFT':
+                    Sounds.beep('move');
+                    state.currentIndex = (state.currentIndex - 1 + ANIMALS.length) % ANIMALS.length;
+                    loadAnimal(state.currentIndex);
+                    break;
+                case 'A':
+                    Sounds.beep('select');
+                    speakDescription();
+                    break;
+                case 'B':
+                    Sounds.beep('select');
+                    state.currentIndex = Math.floor(Math.random() * ANIMALS.length);
+                    loadAnimal(state.currentIndex);
+                    break;
+            }
+        }
+
+        function loadAnimal(index) {
+            stopSpeak();
+            const animal = ANIMALS[index];
+            
+            // Basic Info
+            dom.fields.id.textContent = `#${String(animal.id).padStart(3, '0')}`;
+            dom.fields.name.textContent = animal.name.toUpperCase();
+            dom.fields.sciName.textContent = animal.scientificName;
+            dom.fields.sprite.textContent = animal.emoji;
+            dom.fields.height.textContent = animal.height;
+            dom.fields.weight.textContent = animal.weight;
+            dom.fields.desc.textContent = animal.desc;
+            dom.fields.rarity.textContent = animal.rarity.toUpperCase();
+            
+            // Rarity Color
+            dom.fields.rarity.style.color = animal.rarity === 'legendary' ? '#DAA520' : 
+                                           animal.rarity === 'rare' ? '#FF69B4' : 'var(--text-color)';
+
+            // Types
+            dom.fields.types.innerHTML = '';
+            animal.types.forEach(type => {
+                const badge = document.createElement('div');
+                badge.className = 'badge';
+                badge.style.backgroundColor = TYPE_COLORS[type] || '#555';
+                badge.textContent = type;
+                dom.fields.types.appendChild(badge);
+            });
+
+            // Stats
+            dom.fields.stats.innerHTML = '';
+            Object.entries(animal.stats).forEach(([key, val]) => {
+                const row = document.createElement('div');
+                row.className = 'stat-row';
+                row.innerHTML = `
+                    <div class="stat-label">${key.substring(0,2).toUpperCase()}</div>
+                    <div class="stat-bar-bg">
+                        <div class="stat-bar-fill" style="width: 0%"></div>
+                    </div>
+                `;
+                dom.fields.stats.appendChild(row);
+                // Animate
+                setTimeout(() => {
+                    row.querySelector('.stat-bar-fill').style.width = `${val}%`;
+                }, 50);
+            });
+
+            // Legendary FX
+            if (animal.rarity === 'legendary') {
+                Sounds.legendary();
+                spawnParticles();
+            }
+        }
+
+        function speakDescription() {
+            if (synth.speaking) {
+                stopSpeak();
+                return;
+            }
+            
+            const animal = ANIMALS[state.currentIndex];
+            const text = `${animal.name}. ${animal.types.join(' and ')} type. ${animal.desc}`;
+            
+            speakUtterance = new SpeechSynthesisUtterance(text);
+            speakUtterance.rate = 1.0;
+            speakUtterance.pitch = 0.8; // Robotic low
+            
+            // Select a good voice
+            const voices = synth.getVoices();
+            const robotVoice = voices.find(v => v.name.includes('Google US English')) || voices[0];
+            if(robotVoice) speakUtterance.voice = robotVoice;
+
+            speakUtterance.onstart = () => {
+                state.speaking = true;
+                dom.speaker.classList.add('pulsing');
+                dom.waveform.classList.add('active');
+            };
+            
+            speakUtterance.onend = () => {
+                stopSpeak();
+            };
+
+            synth.speak(speakUtterance);
+        }
+
+        function stopSpeak() {
+            if(synth.speaking) synth.cancel();
+            state.speaking = false;
+            dom.speaker.classList.remove('pulsing');
+            dom.waveform.classList.remove('active');
+        }
+
+        function spawnParticles() {
+            const rect = dom.fields.sprite.getBoundingClientRect();
+            for(let i=0; i<20; i++) {
+                const p = document.createElement('div');
+                p.className = 'particle';
+                
+                // Random angle
+                const angle = Math.random() * Math.PI * 2;
+                const dist = 50 + Math.random() * 50;
+                
+                p.style.setProperty('--tx', `${Math.cos(angle) * dist}px`);
+                p.style.setProperty('--ty', `${Math.sin(angle) * dist}px`);
+                
+                // Position relative to sprite box center (approx)
+                // We just append to sprite area for easier relative positioning
+                dom.fields.sprite.appendChild(p);
+                
+                setTimeout(() => p.remove(), 1000);
+            }
+        }
+
+        // --- CAMERA LOGIC ---
+        function toggleCamera() {
+            if (!state.isOn) return;
+            initAudio();
+            
+            if (state.cameraActive) {
+                stopCamera();
+            } else {
+                startCamera();
+            }
+        }
+
+        async function startCamera() {
+            dom.searchBar.style.display = 'none'; // hide search if open
+            dom.contentScreen.style.display = 'none';
+            dom.cameraView.style.display = 'flex';
+            dom.btnScan.textContent = "SCAN TARGET";
+            dom.btnScan.disabled = false;
+            
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment' } 
+                });
+                state.stream = stream;
+                dom.cameraVideo.srcObject = stream;
+                state.cameraActive = true;
+            } catch (err) {
+                console.error("Camera Error:", err);
+                dom.cameraView.innerHTML = `<div style="color:red; text-align:center; padding:20px;">CAMERA ERROR<br>${err.message}</div>`;
+                setTimeout(stopCamera, 2000);
+            }
+        }
+
+        function stopCamera() {
+            if (state.stream) {
+                state.stream.getTracks().forEach(track => track.stop());
+                state.stream = null;
+            }
+            state.cameraActive = false;
+            dom.cameraView.style.display = 'none';
+            dom.contentScreen.style.display = 'flex';
+        }
+
+        dom.btnScan.addEventListener('click', async () => {
+            if(!state.cameraActive) return;
+            Sounds.shutter();
+            
+            // Capture frame
+            const w = dom.cameraVideo.videoWidth;
+            const h = dom.cameraVideo.videoHeight;
+            dom.cameraCanvas.width = w;
+            dom.cameraCanvas.height = h;
+            const ctx = dom.cameraCanvas.getContext('2d');
+            ctx.drawImage(dom.cameraVideo, 0, 0, w, h);
+            
+            const base64 = dom.cameraCanvas.toDataURL('image/jpeg').split(',')[1];
+            
+            // UI Update
+            dom.btnScan.textContent = "ANALYZING...";
+            dom.btnScan.disabled = true;
+
+            await identifyAnimal(null, base64);
+        });
+
+        // --- SEARCH LOGIC ---
+        function toggleSearch() {
+            if (!state.isOn || state.cameraActive) return;
+            initAudio();
+            
+            if (dom.searchBar.style.display === 'flex') {
+                dom.searchBar.style.display = 'none';
+            } else {
+                dom.searchBar.style.display = 'flex';
+                dom.searchInput.focus();
+            }
+        }
+
+        dom.searchInput.addEventListener('keydown', async (e) => {
+            if (e.key === 'Enter') {
+                const query = dom.searchInput.value.trim();
+                if (query) {
+                    dom.searchInput.value = "SEARCHING...";
+                    dom.searchInput.disabled = true;
+                    Sounds.beep('select');
+                    await identifyAnimal(query, null);
+                    dom.searchInput.value = "";
+                    dom.searchInput.disabled = false;
+                    dom.searchBar.style.display = 'none';
+                }
+            }
+        });
+
+        // --- GEMINI INTEGRATION ---
+        async function identifyAnimal(textQuery, imageBase64) {
+            const systemPrompt = `Identify the animal. Return strictly JSON with this schema: { name, scientificName, emoji, types (array of strings from: jungle, ocean, desert, arctic, savanna, forest, mountain, urban, sky, underground), stats (hp, attack, defense, speed, special; 1-100), height (meters, number), weight (kg, number), description (short 2 sentences), rarity (common, uncommon, rare, legendary), conservationStatus }. If no animal is found or unclear, return { error: "No animal detected" }.`;
+
+            const payload = {
+                contents: [{
+                    parts: [
+                        { text: systemPrompt }
+                    ]
+                }]
+            };
+
+            if (imageBase64) {
+                payload.contents[0].parts.push({
+                    inlineData: { mimeType: "image/jpeg", data: imageBase64 }
+                });
+            } else if (textQuery) {
+                payload.contents[0].parts.push({
+                    text: `Identify this animal: ${textQuery}`
+                });
+            }
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+                
+                if (data.candidates && data.candidates[0].content) {
+                    const rawText = data.candidates[0].content.parts[0].text;
+                    // Clean markdown code blocks if present
+                    const jsonText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+                    const animalData = JSON.parse(jsonText);
+
+                    if (animalData.error) {
+                        throw new Error(animalData.error);
+                    }
+
+                    // Add ID and process
+                    const newId = ANIMALS.length + 1;
+                    animalData.id = newId;
+                    
+                    // Add to collection
+                    ANIMALS.push(animalData);
+                    
+                    // Reset UI
+                    if(state.cameraActive) stopCamera();
+                    
+                    // Show result
+                    state.currentIndex = ANIMALS.length - 1;
+                    loadAnimal(state.currentIndex);
+                    Sounds.legendary(); // Success sound
+
+                } else {
+                    throw new Error("Invalid API response");
+                }
+            } catch (err) {
+                console.error(err);
+                Sounds.sad();
+                // Show error on screen momentarily
+                if (state.cameraActive) {
+                    dom.btnScan.textContent = "ERROR - TRY AGAIN";
+                    setTimeout(() => { dom.btnScan.textContent = "SCAN TARGET"; dom.btnScan.disabled = false; }, 2000);
+                } else {
+                    alert("Error: " + err.message);
+                }
+            }
+        }
+
+    </script>
+</body>
+</html>
