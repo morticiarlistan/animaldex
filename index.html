@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>AnimalDex AI</title>
+    <meta name="description" content="AnimalDex: Tu Pokédex inteligente para la vida real. Descubre, escanea y aprende sobre el reino animal con IA.">
+    <meta name="theme-color" content="#dc2626">
+    <meta property="og:title" content="AnimalDex AI">
+    <meta property="og:description" content="Tu Pokédex inteligente para la vida real. Descubre animales con IA.">
+    <meta property="og:url" content="https://santiagobalosky.github.io/animaldex-gemini/">
+    <link rel="icon" href="favicon.svg">
+    <link rel="manifest" href="manifest.json">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/animaldex-gemini/sw.js', { scope: '/animaldex-gemini/' })
+            .then(reg => console.log('SW registered!', reg))
+            .catch(err => console.log('SW failed', err));
+        });
+      }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --pokedex-red: #dc2626;
+        --pokedex-dark-red: #991b1b;
+        --screen-green: #22c55e;
+        --screen-dark-green: #15803d;
+        --danger-red: #ef4444;
+        --warning-yellow: #eab308;
+      }
+
+      /* Custom scrollbar for the digital screen */
+      .digital-scroll::-webkit-scrollbar {
+        width: 8px;
+      }
+      .digital-scroll::-webkit-scrollbar-track {
+        background: #0d2b2a; 
+      }
+      .digital-scroll::-webkit-scrollbar-thumb {
+        background: #38bdf8; 
+        border-radius: 4px;
+      }
+      
+      /* Boot Sequence Animations */
+      @keyframes bootFadeIn {
+        0% { opacity: 0; transform: scale(1.1); }
+        100% { opacity: 1; transform: scale(1); }
+      }
+
+      @keyframes crtPowerOn {
+        0% { 
+          opacity: 0; 
+          transform: scaleY(0.001) scaleX(1);
+          filter: brightness(10);
+        }
+        50% { 
+          opacity: 0.8; 
+          transform: scaleY(0.1) scaleX(1);
+          filter: brightness(3);
+        }
+        85% { 
+          opacity: 1; 
+          transform: scaleY(0.8) scaleX(1);
+          filter: brightness(1.2);
+        }
+        100% { 
+          opacity: 1; 
+          transform: scaleY(1) scaleX(1);
+          filter: brightness(1);
+        }
+      }
+
+      @keyframes progressBarFill {
+        0% { width: 0%; }
+        100% { width: 100%; }
+      }
+
+      @keyframes textGlow {
+        0%, 100% { text-shadow: 0 0 5px #22c55e; }
+        50% { text-shadow: 0 0 20px #22c55e, 0 0 30px #22c55e; }
+      }
+
+      /* CRT Screen Effects */
+      .crt-screen {
+        background: radial-gradient(ellipse at center, 
+          rgba(34, 197, 94, 0.1) 0%, 
+          rgba(0, 0, 0, 0.9) 100%);
+        position: relative;
+        overflow: hidden;
+        border-radius: 10px;
+        filter: contrast(1.2) brightness(0.9);
+      }
+
+      .crt-screen::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: 
+          linear-gradient(90deg, transparent 50%, rgba(0, 255, 0, 0.02) 50%),
+          linear-gradient(0deg, transparent 50%, rgba(0, 255, 0, 0.03) 50%);
+        background-size: 4px 4px, 4px 4px;
+        pointer-events: none;
+        z-index: 1000;
+      }
+
+      .crt-screen::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(180deg, 
+          transparent 0%, 
+          rgba(0, 255, 0, 0.02) 50%, 
+          transparent 100%);
+        animation: scanlineMove 3s linear infinite;
+        pointer-events: none;
+        z-index: 1001;
+      }
+
+      @keyframes scanlineMove {
+        0% { transform: translateY(-100%); }
+        100% { transform: translateY(100vh); }
+      }
+
+      /* Holographic Card Shimmer */
+      .holographic-card {
+        position: relative;
+        background: linear-gradient(135deg, 
+          rgba(34, 197, 94, 0.1) 0%,
+          rgba(59, 130, 246, 0.1) 25%,
+          rgba(168, 85, 247, 0.1) 50%,
+          rgba(239, 68, 68, 0.1) 75%,
+          rgba(34, 197, 94, 0.1) 100%);
+        background-size: 400% 400%;
+        animation: shimmer 3s ease-in-out infinite;
+        border: 1px solid rgba(34, 197, 94, 0.3);
+      }
+
+      .holographic-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, 
+          transparent, 
+          rgba(255, 255, 255, 0.2), 
+          transparent);
+        animation: hologramSweep 2s infinite;
+      }
+
+      @keyframes shimmer {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+      }
+
+      @keyframes hologramSweep {
+        0% { left: -100%; }
+        100% { left: 100%; }
+      }
+
+      /* Enhanced Scan Animation */
+      .scan-line {
+        width: 100%;
+        height: 3px;
+        z-index: 10;
+        background: linear-gradient(90deg, 
+          transparent 0%, 
+          #ef4444 20%, 
+          #ff6b6b 50%, 
+          #ef4444 80%, 
+          transparent 100%);
+        box-shadow: 0 0 10px #ef4444, 0 0 20px #ef4444, 0 0 30px #ef4444;
+        position: absolute;
+        top: 0;
+        animation: redLaserScan 2s linear infinite;
+        pointer-events: none;
+      }
+
+      @keyframes redLaserScan {
+        0% { top: 0%; opacity: 1; }
+        80% { opacity: 1; }
+        100% { top: 100%; opacity: 0; }
+      }
+
+      /* Particle Effects */
+      .particles-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 1;
+        overflow: hidden;
+      }
+
+      .particle {
+        position: absolute;
+        width: 2px;
+        height: 2px;
+        background: #22c55e;
+        border-radius: 50%;
+        animation: particleFloat 10s linear infinite;
+        opacity: 0.6;
+      }
+
+      @keyframes particleFloat {
+        0% {
+          transform: translateY(100vh) translateX(0px);
+          opacity: 0;
+        }
+        10% {
+          opacity: 0.6;
+        }
+        90% {
+          opacity: 0.6;
+        }
+        100% {
+          transform: translateY(-10px) translateX(100px);
+          opacity: 0;
+        }
+      }
+
+      /* Enhanced LED Blink */
+      .blinking-led {
+        animation: blink 1s infinite;
+      }
+
+      @keyframes blink {
+        0% { opacity: 0.5; box-shadow: 0 0 0px #000; }
+        50% { opacity: 1; box-shadow: 0 0 15px #38bdf8; }
+        100% { opacity: 0.5; box-shadow: 0 0 0px #000; }
+      }
+
+      /* Glitch Effect */
+      .glitch {
+        animation: glitch 0.3s infinite;
+      }
+
+      @keyframes glitch {
+        0% {
+          transform: translate(0);
+          filter: hue-rotate(0deg);
+        }
+        20% {
+          transform: translate(-2px, 2px);
+          filter: hue-rotate(90deg);
+        }
+        40% {
+          transform: translate(-2px, -2px);
+          filter: hue-rotate(180deg);
+        }
+        60% {
+          transform: translate(2px, 2px);
+          filter: hue-rotate(270deg);
+        }
+        80% {
+          transform: translate(2px, -2px);
+          filter: hue-rotate(180deg);
+        }
+        100% {
+          transform: translate(0);
+          filter: hue-rotate(0deg);
+        }
+      }
+
+      /* Card Flip Animation */
+      .flip-card {
+        background-color: transparent;
+        perspective: 1000px;
+      }
+
+      .flip-card-inner {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        text-align: center;
+        transition: transform 0.6s;
+        transform-style: preserve-3d;
+      }
+
+      .flip-card.flipped .flip-card-inner {
+        transform: rotateY(180deg);
+      }
+
+      .flip-card-front, .flip-card-back {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        backface-visibility: hidden;
+        border-radius: 8px;
+      }
+
+      .flip-card-back {
+        transform: rotateY(180deg);
+      }
+
+      /* Type Badges */
+      .type-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 10px;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .type-selva { background: linear-gradient(135deg, #22c55e, #15803d); color: white; }
+      .type-oceano { background: linear-gradient(135deg, #3b82f6, #1e40af); color: white; }
+      .type-desierto { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+      .type-artico { background: linear-gradient(135deg, #67e8f9, #0891b2); color: black; }
+      .type-sabana { background: linear-gradient(135deg, #eab308, #ca8a04); color: black; }
+      .type-bosque { background: linear-gradient(135deg, #16a34a, #166534); color: white; }
+      .type-montana { background: linear-gradient(135deg, #6b7280, #374151); color: white; }
+      .type-urbano { background: linear-gradient(135deg, #64748b, #334155); color: white; }
+
+      /* Rarity Colors */
+      .rarity-comun { color: #6b7280; }
+      .rarity-poco-comun { color: #22c55e; }
+      .rarity-raro { color: #3b82f6; }
+      .rarity-epico { color: #a855f7; }
+      .rarity-legendario { color: #f59e0b; }
+
+      /* Conservation Status */
+      .status-lc { color: #22c55e; } /* Least Concern */
+      .status-nt { color: #84cc16; } /* Near Threatened */
+      .status-vu { color: #eab308; } /* Vulnerable */
+      .status-en { color: #f59e0b; } /* Endangered */
+      .status-cr { color: #ef4444; } /* Critically Endangered */
+      .status-ew { color: #71717a; } /* Extinct in Wild */
+      .status-ex { color: #1f2937; } /* Extinct */
+
+      /* Boot Screen */
+      .boot-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #000;
+        color: #22c55e;
+        font-family: 'VT323', monospace;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        animation: bootFadeIn 0.5s ease-in;
+      }
+
+      .ascii-art {
+        font-size: 12px;
+        line-height: 1;
+        white-space: pre;
+        animation: textGlow 2s infinite;
+      }
+
+      .progress-bar {
+        width: 300px;
+        height: 20px;
+        border: 2px solid #22c55e;
+        background: transparent;
+        margin: 20px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #22c55e, #16a34a);
+        animation: progressBarFill 3s ease-in-out;
+      }
+
+      /* Enhanced Pokédex Design */
+      .pokedex-hinge {
+        background: linear-gradient(135deg, #7f1d1d, #991b1b, #dc2626);
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+      }
+
+      /* Camera Overlay */
+      .camera-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        color: #22c55e;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+      }
+
+      .crosshairs {
+        position: relative;
+        width: 200px;
+        height: 200px;
+        border: 2px solid #ef4444;
+        border-radius: 50%;
+      }
+
+      .crosshairs::before,
+      .crosshairs::after {
+        content: '';
+        position: absolute;
+        background: #ef4444;
+      }
+
+      .crosshairs::before {
+        width: 2px;
+        height: 40px;
+        top: -20px;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+
+      .crosshairs::after {
+        width: 40px;
+        height: 2px;
+        top: 50%;
+        left: -20px;
+        transform: translateY(-50%);
+      }
+
+      /* Missing No Style */
+      .missing-no {
+        filter: contrast(1000%) brightness(200%) hue-rotate(180deg);
+        animation: glitch 0.1s infinite;
+      }
+
+      /* Konami Code Animation */
+      .konami-unlock {
+        animation: konamiGlow 1s ease-in-out;
+      }
+
+      @keyframes konamiGlow {
+        0% { transform: scale(1); filter: brightness(1); }
+        50% { transform: scale(1.1); filter: brightness(2) hue-rotate(90deg); }
+        100% { transform: scale(1); filter: brightness(1); }
+      }
+
+      /* Responsive Design */
+      @media (max-width: 768px) {
+        .ascii-art {
+          font-size: 8px;
+        }
+        .progress-bar {
+          width: 250px;
+        }
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "@google/genai": "https://esm.sh/@google/genai@^1.38.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-gray-900 text-white h-screen overflow-hidden selection:bg-green-500 selection:text-black">
+    <div id="root"></div>
+    
+    <!-- Background particles container -->
+    <div class="particles-container"></div>
+    
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+{
+  "name": "AnimalDex",
+  "description": "Una enciclopedia de animales estilo Pokedex impulsada por IA con voz robótica.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
